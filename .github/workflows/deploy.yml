@@ -1,4 +1,4 @@
-name: Deploy
+name: Deploy to Public Repo
 
 on:
   push:
@@ -6,31 +6,43 @@ on:
       - main
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v2
-      with:
-        node-version: '14'
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20"
 
-    - name: Install dependencies
-      run: npm install
+      - name: Install pnpm
+        run: npm install -g pnpm
 
-    - name: Build the project
-      run: npm run build
+      - name: Install dependencies
+        run: pnpm install
 
-    - name: Deploy to GitHub Pages
-      env:
-        DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
-      run: |
-        git config --global user.name 'github-actions[bot]'
-        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-        git remote set-url origin https://x-access-token:${{ secrets.DEPLOY_TOKEN }}@github.com/${{ github.repository }}.git
-        git add .
-        git commit -m 'Deploy'
-        git push origin HEAD:gh-pages --force
+      - name: Build project
+        run: pnpm run build
+
+      - name: Clone target repository
+        env:
+          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+        run: |
+          git clone --branch gh-pages https://Charmidevdb:${{ secrets.DEPLOY_TOKEN }}@github.com/Charmidevdb/Charmidevdb.c2s-frontend.io.git target-repo
+
+      - name: Copy build files
+        run: rsync -av --delete dist/ target-repo/
+
+      - name: Commit and push changes
+        env:
+          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+        run: |
+          cd target-repo
+          git config --global user.name "Charmidevdb"
+          git config --global user.email "micheyann57@gmail.com"
+          git add .
+          git commit -m "Auto-deploy" || echo "No changes to commit"
+          git push --force https://Charmidevdb:${{ secrets.DEPLOY_TOKEN }}@github.com/Charmidevdb/Charmidevdb.c2s-frontend.io.git gh-pages
